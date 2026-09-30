@@ -1,0 +1,57 @@
+name: Validacion Docker y GitHub Actions
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validacion:
+    name: Comprobar construir y ejecutar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo del repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Comprobar configuracion con Docker Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          call: check
+
+      - name: Comprobar configuracion con Docker Bake
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          files: ./docker-bake.hcl
+          targets: app
+          call: check
+
+      - name: Construir imagen con Docker Build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: validacion-docker:build
+
+      - name: Ejecutar imagen de Docker Build
+        run: docker run --rm validacion-docker:build
+
+      - name: Construir imagen con Docker Bake
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          files: ./docker-bake.hcl
+          targets: app
+          load: true
+          push: false
+
+      - name: Ejecutar imagen de Docker Bake
+        run: docker run --rm validacion-docker:bake
